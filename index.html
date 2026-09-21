@@ -1,0 +1,284 @@
+<!doctype html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Habits</title><!-- V6.1: edición y eliminación visibles -->
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b0b0b;color:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.app{max-width:520px;margin:auto;min-height:100vh;padding:22px 18px 90px}h1,h2,p{margin:0}.muted{color:#8d8d8d}.top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px}button{border:0;color:inherit;background:none;font:inherit;cursor:pointer}.add{border:1px solid #333;border-radius:12px;padding:10px 13px}.card{border:1px solid #292929;border-radius:18px;padding:18px;margin-bottom:14px;background:#111}.progress{height:8px;background:#292929;border-radius:99px;overflow:hidden;margin:12px 0}.bar{height:100%;background:#f5f5f5;width:0;transition:.2s}.stat{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat .card{margin:0}.num{font-size:25px;font-weight:700;margin-top:5px}.habit{width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:14px;border:1px solid #292929;border-radius:14px;margin-top:9px;background:#111}.check{width:32px;height:32px;border:1px solid #444;border-radius:9px;display:grid;place-items:center;flex:none}.habit.done .check{background:#f5f5f5;color:#111}.habit.done .name{text-decoration:line-through;color:#777}.tabs{position:fixed;bottom:0;left:0;right:0;background:#0b0b0b;border-top:1px solid #292929;display:flex;justify-content:center;gap:8px;padding:10px}.tabs button{padding:10px 18px;border-radius:10px;color:#888}.tabs button.active{background:#1b1b1b;color:#fff}.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.dow{text-align:center;color:#777;font-size:12px;padding:5px}.day{aspect-ratio:1;border:1px solid #292929;border-radius:9px;display:grid;place-items:center;font-size:13px}.day.done{background:#f5f5f5;color:#111}.day.today{outline:1px solid #777}.hidden{display:none!important}.empty{text-align:center;padding:30px;color:#888}.primary{background:#f5f5f5;color:#111;border-radius:12px;padding:11px 15px;margin-top:15px}.manage-actions{display:flex;gap:8px;margin-left:auto}
+.manage-btn{border:1px solid #3a3a3a;border-radius:10px;padding:8px 11px;color:#f5f5f5;background:#151515;font-size:14px}
+.manage-btn.edit{border-color:#555}
+.manage-btn.delete{color:#bbb}
+.manage-btn:active{transform:scale(.98)}input{width:100%;padding:13px;background:#151515;color:#fff;border:1px solid #333;border-radius:10px;font-size:16px;margin-top:8px}
+</style></head><body><div class="app">
+<section id="home"><div class="top"><div><div class="muted" id="date"></div><h1>Buenos días.</h1></div><button class="add" onclick="addHabit()">+ Hábito</button></div>
+<div class="card"><div class="muted">Hoy</div><h2 id="message" style="margin-top:5px">Vamos.</h2><div class="progress"><div class="bar" id="bar"></div></div><div class="muted" id="summary"></div></div><div id="habitList"></div></section>
+<section id="calendar" class="hidden"><div class="top"><div><div class="muted">CONSTANCIA</div><h1>Calendario</h1></div></div><div class="stat"><div class="card"><div class="muted">Racha actual</div><div class="num" id="streak">0</div></div><div class="card"><div class="muted">Días cumplidos</div><div class="num" id="daysDone">0</div></div></div>
+<div class="stat" style="margin-top:10px"><div class="card"><div class="muted">Mejor racha</div><div class="num" id="bestStreak">0</div></div><div class="card"><div class="muted">Constancia</div><div class="num" id="consistency">0%</div></div></div><div class="card" style="margin-top:14px"><div class="top" style="margin-bottom:14px"><button onclick="prevMonth()">‹</button><strong id="month"></strong><button onclick="nextMonth()">›</button></div><div class="grid" id="cal"></div></div></section>
+<section id="manage" class="hidden"><div class="top"><div><div class="muted">PERSONALIZA</div><h1>Mis hábitos</h1></div></div><div class="card"><div class="muted">Agregar hábito</div><input id="newHabit" placeholder="Ej. Leer 20 minutos"><button class="primary" onclick="addFromInput()">Agregar</button></div><div id="manageList"></div></section></div>
+<nav class="tabs"><button class="active" onclick="show('home',this)">Hoy</button><button onclick="show('calendar',this)">Calendario</button><button onclick="show('manage',this)">Hábitos</button></nav>
+<script>
+const KEY="myhabits-v6";
+const OLD_KEY="myhabits-v2";
+let data=JSON.parse(localStorage.getItem(KEY)||"null");
+
+function slug(s){
+  return String(s).toLowerCase().normalize("NFD")
+    .replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"")
+    .slice(0,40)||"habito";
+}
+function uid(){
+  return "h-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
+}
+function normalizeHabits(habits){
+  return (habits||[]).map((h,i)=>{
+    if(typeof h==="string"){
+      return {id:"h-"+slug(h)+"-"+i,name:h};
+    }
+    return {
+      id:h.id||("h-"+slug(h.name||"habito")+"-"+i),
+      name:h.name||"Hábito"
+    };
+  });
+}
+function migrateV5(old){
+  if(!old) return null;
+
+  const habits=normalizeHabits(old.habits);
+  const days={};
+
+  Object.keys(old.days||{}).forEach(k=>{
+    const oldDay=old.days[k]||{};
+    const newDay={};
+
+    // V5 stored completion by numeric position: {0:true,1:false,...}
+    habits.forEach((h,i)=>{
+      if(oldDay[i]===true) newDay[h.id]=true;
+    });
+
+    days[k]=newDay;
+  });
+
+  return {habits,days};
+}
+
+if(!data){
+  data=migrateV5(JSON.parse(localStorage.getItem(OLD_KEY)||"null"));
+
+  if(!data){
+    data={
+      habits:[
+        {id:"h-entrenamiento",name:"Entrenamiento"},
+        {id:"h-tomar-agua",name:"Tomar agua"},
+        {id:"h-leer-20-minutos",name:"Leer 20 minutos"},
+        {id:"h-dormir-a-tiempo",name:"Dormir a tiempo"}
+      ],
+      days:{}
+    };
+
+    // Compatibilidad con una versión todavía más antigua.
+    const oldV1=JSON.parse(localStorage.getItem("myhabits-v1")||"null");
+    if(oldV1?.today){
+      const k=key(new Date());
+      data.days[k]={};
+      Object.keys(oldV1.today).forEach(i=>{
+        if(oldV1.today[i]===true && data.habits[i]){
+          data.days[k][data.habits[i].id]=true;
+        }
+      });
+    }
+  }
+
+  localStorage.setItem(KEY,JSON.stringify(data));
+}else{
+  data.habits=normalizeHabits(data.habits);
+  data.days=data.days||{};
+}
+let viewDate=new Date();
+function save(){localStorage.setItem(KEY,JSON.stringify(data))}
+function day(k){return data.days[k]||(data.days[k]={})}
+function pct(k){
+  if(!data.habits.length)return 0;
+  const x=day(k);
+  const n=data.habits.reduce((a,h)=>a+(x[h.id]===true?1:0),0);
+  return Math.round(n/data.habits.length*100);
+}
+function complete(k){return pct(k)>=80}
+document.getElementById("date").textContent=new Date().toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long"});
+function renderHome(){
+  let l=document.getElementById("habitList");
+  l.innerHTML="";
+  let x=day(todayKey);
+
+  data.habits.forEach(h=>{
+    let on=x[h.id]===true;
+    let b=document.createElement("button");
+    b.className="habit"+(on?" done":"");
+    b.onclick=()=>{
+      x[h.id]=!on;
+      save();
+      render();
+    };
+    b.innerHTML=`<span class="check">${on?"✓":""}</span><span class="name">${escapeHtml(h.name)}</span>`;
+    l.appendChild(b);
+  });
+
+  let p=pct(todayKey);
+  let done=data.habits.reduce((a,h)=>a+(x[h.id]===true?1:0),0);
+  document.getElementById("bar").style.width=p+"%";
+  document.getElementById("summary").textContent=`${done} de ${data.habits.length} hábitos cumplidos`;
+  document.getElementById("message").textContent=
+    p>=100?"Día completo. Te cumpliste.":
+    p>=80?"Felicidades. Lo bueno dominó.":
+    p>=50?"No fue perfecto. Pero avanzaste.":
+    p>0?"Hoy no salió completo. Mañana continúa.":"Vamos.";
+}
+function renderCalendar(){let y=viewDate.getFullYear(),m=viewDate.getMonth(),c=document.getElementById("cal");c.innerHTML="";document.getElementById("month").textContent=viewDate.toLocaleDateString("es-MX",{month:"long",year:"numeric"});["D","L","M","M","J","V","S"].forEach(x=>{let e=document.createElement("div");e.className="dow";e.textContent=x;c.appendChild(e)});for(let i=0;i<new Date(y,m,1).getDay();i++)c.appendChild(document.createElement("div"));for(let d=1;d<=new Date(y,m+1,0).getDate();d++){let dt=new Date(y,m,d),k=key(dt),e=document.createElement("button");e.className="day"+(complete(k)?" done":"")+(k===todayKey?" today":"");e.textContent=d;e.onclick=()=>showDayDetail(k);c.appendChild(e)}updateStats()}
+function updateStats(){
+  const completedDates=Object.keys(data.days).filter(complete).sort();
+
+  let count=completedDates.length;
+  let current=0;
+  let d=new Date();
+
+  while(complete(key(d))){
+    current++;
+    d.setDate(d.getDate()-1);
+  }
+
+  let best=0,run=0,prev=null;
+  completedDates.forEach(k=>{
+    if(prev){
+      const a=new Date(prev+"T12:00:00");
+      const b=new Date(k+"T12:00:00");
+      const diff=Math.round((b-a)/86400000);
+      run=diff===1?run+1:1;
+    }else{
+      run=1;
+    }
+    best=Math.max(best,run);
+    prev=k;
+  });
+
+  // Solo contamos días en los que el usuario realmente registró al menos un hábito.
+  // El calendario crea registros vacíos al dibujar los días, pero esos no deben
+  // reducir la constancia.
+  const recordedDates=Object.keys(data.days).filter(k=>{
+    const x=data.days[k];
+    return x && Object.keys(x).length>0;
+  });
+  const totalDays=Math.max(1,recordedDates.length);
+  const consistency=Math.round((count/totalDays)*100);
+
+  document.getElementById("daysDone").textContent=count;
+  document.getElementById("streak").textContent=current;
+  document.getElementById("bestStreak").textContent=best;
+  document.getElementById("consistency").textContent=consistency+"%";
+}
+
+function renderManage(){
+  let b=document.getElementById("manageList");
+  b.innerHTML="";
+
+  data.habits.forEach(h=>{
+    let e=document.createElement("div");
+    e.className="habit";
+    e.innerHTML=`
+      <span class="name" style="flex:1">${escapeHtml(h.name)}</span>
+      <div class="manage-actions">
+        <button type="button" class="manage-btn edit" onclick="editHabit('${h.id}')">Editar</button>
+        <button type="button" class="manage-btn delete" onclick="removeHabit('${h.id}')">Eliminar</button>
+      </div>`;
+    b.appendChild(e);
+  });
+}
+
+function addHabit(){
+  let h=prompt("¿Qué hábito quieres agregar?");
+  if(h?.trim()){
+    data.habits.push({id:uid(),name:h.trim()});
+    save();
+    render();
+  }
+}
+
+function addFromInput(){
+  let e=document.getElementById("newHabit");
+  let h=e.value.trim();
+  if(h){
+    data.habits.push({id:uid(),name:h});
+    e.value="";
+    save();
+    render();
+  }
+}
+
+function editHabit(id){
+  const h=data.habits.find(x=>x.id===id);
+  if(!h)return;
+
+  const name=prompt("Editar hábito:",h.name);
+  if(name?.trim()){
+    h.name=name.trim();
+    save();
+    render();
+  }
+}
+
+function removeHabit(id){
+  const h=data.habits.find(x=>x.id===id);
+  if(!h)return;
+
+  if(confirm(`¿Eliminar "${h.name}"? Su historial se conservará.`)){
+    data.habits=data.habits.filter(x=>x.id!==id);
+    save();
+    render();
+  }
+}
+function prevMonth(){viewDate.setMonth(viewDate.getMonth()-1);renderCalendar()}function nextMonth(){viewDate.setMonth(viewDate.getMonth()+1);renderCalendar()}
+function show(id,b){document.querySelectorAll("section").forEach(s=>s.classList.add("hidden"));document.getElementById(id).classList.remove("hidden");document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));b.classList.add("active");render()}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function render(){renderHome();renderCalendar();renderManage()}render();
+</script>
+<div id="dayDetail" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:20;padding:22px 18px;display:flex;align-items:flex-end;justify-content:center">
+  <div class="card" style="width:min(520px,100%);margin:0;max-height:82vh;overflow:auto">
+    <div class="top" style="margin-bottom:14px">
+      <div>
+        <div class="muted">RESUMEN DEL DÍA</div>
+        <h2 id="detailDate" style="margin-top:4px"></h2>
+      </div>
+      <button onclick="closeDayDetail()" style="font-size:24px;color:#888">×</button>
+    </div>
+    <div class="card" style="margin:0 0 12px">
+      <div class="muted">Cumplimiento</div>
+      <div class="num" id="detailPct">0%</div>
+    </div>
+    <div id="detailList"></div>
+  </div>
+</div>
+
+<script>
+function showDayDetail(k){
+  const d = new Date(k + "T12:00:00");
+  const x = data.days[k] || {};
+  const p = pct(k);
+  document.getElementById("detailDate").textContent = d.toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  document.getElementById("detailPct").textContent = p + "%";
+  const list=document.getElementById("detailList");
+  list.innerHTML="";
+  if(!data.habits.length){
+    list.innerHTML='<div class="empty">No había hábitos.</div>';
+  } else {
+    data.habits.forEach(h=>{
+      const done=x[h.id]===true;
+      const e=document.createElement("div");
+      e.className="habit"+(done?" done":"");
+      e.style.cursor="default";
+      e.innerHTML=`<span class="check">${done?"✓":""}</span><span class="name">${escapeHtml(h.name)}</span>`;
+      list.appendChild(e);
+    });
+  }
+  document.getElementById("dayDetail").classList.remove("hidden");
+}
+function closeDayDetail(){
+  document.getElementById("dayDetail").classList.add("hidden");
+}
+</script></body></html>
