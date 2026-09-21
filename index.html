@@ -49,7 +49,14 @@ function updateStats(){
     prev=k;
   });
 
-  const totalDays=Math.max(1,Object.keys(data.days).length);
+  // Solo contamos días en los que el usuario realmente registró al menos un hábito.
+  // El calendario crea registros vacíos al dibujar los días, pero esos no deben
+  // reducir la constancia.
+  const recordedDates=Object.keys(data.days).filter(k=>{
+    const x=data.days[k];
+    return x && Object.values(x).some(v=>v===true);
+  });
+  const totalDays=Math.max(1,recordedDates.length);
   const consistency=Math.round((count/totalDays)*100);
 
   document.getElementById("daysDone").textContent=count;
