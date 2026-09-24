@@ -1,0 +1,1389 @@
+<!doctype html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Habits V16 — Cuenta</title>
+<style>
+*{box-sizing:border-box}
+html{background:#0b0b0b}
+body{margin:0;background:#0b0b0b;color:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+button,input{font:inherit}
+button{border:0;color:inherit;background:none;cursor:pointer}
+button:active{transform:scale(.98)}
+.app{max-width:520px;margin:auto;min-height:100vh;padding:24px 18px calc(104px + env(safe-area-inset-bottom))}
+h1,h2,p{margin:0}
+h1{font-size:42px;line-height:1.02;letter-spacing:-1.6px}
+h2{font-size:27px;line-height:1.1;letter-spacing:-.7px}
+.muted{color:#8d8d8d}
+.top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;gap:12px}
+.add{border:1px solid #383838;border-radius:14px;padding:11px 14px;white-space:nowrap;transition:.18s}
+.add:active{background:#1b1b1b}
+.card{border:1px solid #292929;border-radius:20px;padding:18px;margin-bottom:14px;background:#111}
+.today-card{padding:20px}
+.status-row{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.percent{font-size:22px;font-weight:700;letter-spacing:-.5px}
+.progress{height:9px;background:#292929;border-radius:99px;overflow:hidden;margin:15px 0 10px}
+.bar{height:100%;background:#f5f5f5;width:0;transition:width .35s ease}
+#summary{font-size:14px}
+.stat{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat .card{margin:0}
+.num{font-size:28px;font-weight:700;margin-top:6px;letter-spacing:-.5px}
+.habit{width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:15px;border:1px solid #292929;border-radius:15px;margin-top:9px;background:#111;transition:background .18s,border-color .18s,transform .12s}
+.habit:hover{border-color:#3b3b3b}
+.check{width:34px;height:34px;border:1px solid #444;border-radius:10px;display:grid;place-items:center;flex:none;transition:.2s}
+.habit.done .check{background:#f5f5f5;color:#111;border-color:#f5f5f5;animation:checkPop .22s ease-out}
+.habit.done .name{text-decoration:line-through;color:#777}
+@keyframes checkPop{0%{transform:scale(.82)}70%{transform:scale(1.08)}100%{transform:scale(1)}}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:rgba(11,11,11,.96);border-top:1px solid #292929;display:flex;justify-content:center;gap:8px;padding:10px 8px calc(10px + env(safe-area-inset-bottom));z-index:10;backdrop-filter:blur(12px)}
+.tabs button{padding:11px 18px;border-radius:12px;color:#888;transition:.18s}
+.tabs button.active{background:#1b1b1b;color:#fff}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.dow{text-align:center;color:#777;font-size:12px;padding:5px}
+.day{aspect-ratio:1;border:1px solid #292929;border-radius:10px;display:grid;place-items:center;font-size:13px;transition:.15s}
+.day.done{background:#f5f5f5;color:#111;border-color:#f5f5f5}
+.day.today{outline:1px solid #777;outline-offset:1px}
+.day:active{transform:scale(.96)}
+.hidden{display:none!important}
+.chart{display:flex;align-items:flex-end;gap:8px;height:130px;margin-top:16px}
+.chart-col{flex:1;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:7px}
+.chart-bar{width:100%;max-width:34px;background:#f5f5f5;border-radius:7px 7px 2px 2px;min-height:3px;transition:height .25s}
+.chart-label{font-size:11px;color:#777}
+.metric-row{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #292929}
+.metric-row:last-child{border-bottom:0}
+.metric-value{font-size:20px;font-weight:700}
+.rank-name{font-size:15px}
+.small{font-size:13px;color:#888}
+.empty{text-align:center;padding:30px;color:#888}
+.primary{background:#f5f5f5;color:#111;border-radius:12px;padding:11px 15px;margin-top:15px;transition:.18s}
+input{width:100%;padding:14px;background:#151515;color:#fff;border:1px solid #333;border-radius:12px;font-size:16px;margin-top:8px;outline:none}
+input:focus{border-color:#666}
+.manage-actions{display:flex;gap:8px;width:100%;margin-top:14px}
+.manage-btn{border:1px solid #333;background:#151515;color:#f5f5f5;border-radius:10px;padding:10px 12px;font-size:14px;flex:1}
+.manage-btn.edit{color:#fff}
+.manage-btn.delete{color:#aaa}
+.manage-card{display:block;width:100%}
+
+.reminder-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;margin-top:12px;padding-top:12px;border-top:1px solid #292929}
+.reminder-label{font-size:13px;color:#8e8e8e;flex:1;min-width:0}
+.reminder-controls{display:flex;align-items:center;gap:12px;flex:none}
+.reminder-time{width:105px;box-sizing:border-box;margin:0;padding:9px 10px}
+.switch{position:relative;width:48px;height:28px;display:block;flex:none}
+
+.reminder-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid #292929}
+.reminder-time{width:120px;margin:0;padding:10px 12px}
+.switch{position:relative;width:48px;height:28px;flex:none}
+.switch input{opacity:0;width:0;height:0;margin:0}
+.switch-ui{position:absolute;inset:0;background:#292929;border-radius:99px;transition:.2s}
+.switch-ui:before{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;background:#777;border-radius:50%;transition:.2s}
+.switch input:checked + .switch-ui{background:#f5f5f5}
+.switch input:checked + .switch-ui:before{transform:translateX(20px);background:#111}
+.notice{font-size:13px;color:#888;line-height:1.4}
+.permission{margin-top:10px}
+@media(max-width:390px){
+  .reminder-row{display:block}
+  .reminder-label{display:block;margin-bottom:9px}
+  .reminder-controls{justify-content:space-between;width:100%}
+  .reminder-time{width:110px}
+
+  h1{font-size:37px}
+  .tabs{gap:3px}
+  .tabs button{padding:11px 10px}
+  .manage-btn{padding:9px 10px}
+}
+
+/* V10 — pantalla de inicio y microanimaciones */
+#introScreen{
+  position:fixed;inset:0;z-index:9999;background:#080808;color:#f5f5f5;
+  display:flex;align-items:center;justify-content:center;padding:28px;
+  opacity:1;visibility:visible;transition:opacity .55s ease,visibility .55s ease;
+}
+#introScreen.hide{opacity:0;visibility:hidden;pointer-events:none}
+.intro-inner{
+  width:min(420px,100%);text-align:center;
+  opacity:0;transform:translateY(10px);
+  animation:introIn .75s cubic-bezier(.2,.8,.2,1) .08s forwards;
+}
+.intro-mark{
+  width:70px;height:70px;margin:0 auto 30px;border:1px solid #686868;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:30px;font-weight:800;letter-spacing:-2px;
+}
+.intro-title{font-size:34px;letter-spacing:4px;font-weight:700;margin:0 0 20px}
+.intro-copy{font-size:17px;line-height:1.55;color:#999;margin:0 auto 32px;max-width:290px}
+.intro-copy strong{color:#f5f5f5;font-weight:600}
+.intro-start{
+  width:100%;max-width:320px;border:1px solid #555;background:#f5f5f5;color:#080808;
+  border-radius:14px;padding:15px 18px;font-size:15px;font-weight:700;
+  cursor:pointer;transition:transform .16s ease,opacity .16s ease;
+}
+.intro-start:active{transform:scale(.98)}
+.intro-note{font-size:11px;color:#555;margin-top:17px;letter-spacing:.5px}
+body.app-ready .page{animation:pageIn .5s ease both}
+button,.nav-item,.habit-check,.switch-ui,.manage-btn{transition:transform .16s ease,opacity .16s ease,background .2s ease}
+button:active,.nav-item:active,.manage-btn:active{transform:scale(.98)}
+@keyframes introIn{to{opacity:1;transform:translateY(0)}}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:390px){
+  .intro-title{font-size:30px;letter-spacing:3px}
+  .intro-copy{font-size:16px}
+}
+
+/* V11 — experiencia de entrada / motion */
+#introScreen{
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 45%,rgba(255,255,255,.055),transparent 28%),
+    #080808;
+}
+#introScreen::before,
+#introScreen::after{
+  content:"";
+  position:absolute;
+  width:46vw;height:46vw;max-width:430px;max-height:430px;
+  border-radius:50%;
+  pointer-events:none;
+  filter:blur(42px);
+  opacity:.18;
+}
+#introScreen::before{
+  left:-18vw;top:12vh;
+  background:radial-gradient(circle,rgba(255,255,255,.22),transparent 68%);
+  animation:introGlowA 9s ease-in-out infinite alternate;
+}
+#introScreen::after{
+  right:-20vw;bottom:8vh;
+  background:radial-gradient(circle,rgba(190,200,215,.18),transparent 68%);
+  animation:introGlowB 11s ease-in-out infinite alternate;
+}
+.intro-grid{
+  position:absolute;inset:-20%;
+  pointer-events:none;opacity:.045;
+  background-image:
+    linear-gradient(rgba(255,255,255,.55) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.55) 1px,transparent 1px);
+  background-size:54px 54px;
+  transform:perspective(600px) rotateX(62deg) translateY(18%);
+  transform-origin:center bottom;
+  animation:gridDrift 18s linear infinite;
+}
+.intro-orbit{
+  position:absolute;
+  width:210px;height:210px;border:1px solid rgba(255,255,255,.08);
+  border-radius:50%;left:50%;top:50%;
+  transform:translate(-50%,-54%) rotate(-18deg);
+  pointer-events:none;
+  animation:orbitFloat 7s ease-in-out infinite;
+}
+.intro-orbit::after{
+  content:"";position:absolute;width:5px;height:5px;border-radius:50%;
+  background:#f5f5f5;left:15%;top:16%;
+  box-shadow:0 0 18px rgba(255,255,255,.6);
+}
+.intro-inner{position:relative;z-index:2}
+.intro-mark{
+  position:relative;
+  overflow:hidden;
+  background:linear-gradient(145deg,#171717,#090909);
+  box-shadow:0 0 0 1px rgba(255,255,255,.03),0 18px 55px rgba(0,0,0,.55);
+  animation:markFloat 5s ease-in-out 1.1s infinite;
+}
+.intro-mark::after{
+  content:"";position:absolute;top:-80%;left:-35%;width:35%;height:260%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.24),transparent);
+  transform:rotate(18deg);
+  animation:markSweep 4.5s ease-in-out 1.3s infinite;
+}
+.intro-title{animation:titleReveal .7s cubic-bezier(.2,.8,.2,1) .35s both}
+.intro-copy{animation:copyReveal .7s cubic-bezier(.2,.8,.2,1) .55s both}
+.intro-start{animation:buttonReveal .7s cubic-bezier(.2,.8,.2,1) .75s both}
+.intro-note{animation:copyReveal .7s cubic-bezier(.2,.8,.2,1) .9s both}
+.intro-start:hover{opacity:.92}
+#introScreen.hide .intro-inner{animation:introExit .55s cubic-bezier(.4,0,.8,1) forwards}
+#introScreen.hide .intro-grid{animation:gridExit .55s ease forwards}
+#introScreen.hide .intro-orbit{animation:orbitExit .55s ease forwards}
+@keyframes introGlowA{from{transform:translate3d(0,0,0) scale(.9)}to{transform:translate3d(18vw,7vh,0) scale(1.18)}}
+@keyframes introGlowB{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(-16vw,-9vh,0) scale(.82)}}
+@keyframes gridDrift{from{transform:perspective(600px) rotateX(62deg) translateY(18%) translateX(0)}to{transform:perspective(600px) rotateX(62deg) translateY(18%) translateX(54px)}}
+@keyframes orbitFloat{0%,100%{margin-top:0;opacity:.8}50%{margin-top:-7px;opacity:1}}
+@keyframes markFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes markSweep{0%,55%,100%{left:-35%;opacity:0}20%{opacity:1}45%{left:120%;opacity:1}}
+@keyframes titleReveal{from{opacity:0;transform:translateY(12px);letter-spacing:7px}to{opacity:1;transform:translateY(0);letter-spacing:4px}}
+@keyframes copyReveal{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes buttonReveal{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes introExit{to{opacity:0;transform:translateY(-10px) scale(.985)}}
+@keyframes gridExit{to{opacity:0;transform:perspective(600px) rotateX(62deg) translateY(26%) scale(1.04)}}
+@keyframes orbitExit{to{opacity:0;transform:translate(-50%,-54%) scale(1.12)}}
+@media(prefers-reduced-motion:reduce){
+  #introScreen *,#introScreen::before,#introScreen::after{animation:none!important}
+}
+@media(max-width:390px){
+  .intro-orbit{width:185px;height:185px}
+}
+
+/* V12 — microinteracciones premium */
+.habit-check{
+  position:relative;
+  overflow:hidden;
+  transition:transform .16s ease,background .22s ease,border-color .22s ease;
+}
+.habit-check .checkmark{
+  display:inline-block;
+  transform:scale(.35) rotate(-8deg);
+  opacity:0;
+  transition:transform .24s cubic-bezier(.2,.8,.2,1),opacity .18s ease;
+}
+.habit-check.checked .checkmark{
+  transform:scale(1) rotate(0);
+  opacity:1;
+}
+.habit-check.checked{
+  animation:checkPop .28s cubic-bezier(.2,.8,.2,1);
+}
+.progress-fill{
+  transform-origin:left center;
+  transition:width .65s cubic-bezier(.2,.8,.2,1);
+}
+.today-card .progress-fill{will-change:width}
+#progressPercent{display:inline-block;transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .2s ease}
+.percent-pop{animation:percentPop .38s cubic-bezier(.2,.8,.2,1)}
+.message-pop{animation:messagePop .42s cubic-bezier(.2,.8,.2,1)}
+.day-complete{
+  position:relative;
+}
+.day-complete::after{
+  content:"";
+  position:absolute;inset:-1px;border-radius:inherit;
+  border:1px solid rgba(255,255,255,.28);
+  opacity:0;pointer-events:none;
+}
+.day-complete.flash::after{animation:completeRing .65s ease-out}
+.nav-item{transition:transform .16s ease,background .22s ease,color .22s ease}
+.nav-item.active{animation:navSettle .28s ease}
+.toast-v12{
+  position:fixed;left:50%;bottom:88px;z-index:10000;
+  transform:translate(-50%,12px);opacity:0;pointer-events:none;
+  background:#f5f5f5;color:#080808;border-radius:999px;
+  padding:10px 15px;font-size:13px;font-weight:650;
+  box-shadow:0 12px 35px rgba(0,0,0,.35);
+}
+.toast-v12.show{animation:toastInOut 1.25s cubic-bezier(.2,.8,.2,1) forwards}
+@keyframes checkPop{
+  0%{transform:scale(.94)}
+  55%{transform:scale(1.06)}
+  100%{transform:scale(1)}
+}
+@keyframes percentPop{
+  0%{transform:scale(1);opacity:1}
+  45%{transform:scale(1.12);opacity:.75}
+  100%{transform:scale(1);opacity:1}
+}
+@keyframes messagePop{
+  from{opacity:.35;transform:translateY(5px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes completeRing{
+  0%{opacity:.55;transform:scale(.98)}
+  100%{opacity:0;transform:scale(1.025)}
+}
+@keyframes navSettle{
+  0%{transform:scale(.96)}
+  100%{transform:scale(1)}
+}
+@keyframes toastInOut{
+  0%{opacity:0;transform:translate(-50%,12px)}
+  15%,78%{opacity:1;transform:translate(-50%,0)}
+  100%{opacity:0;transform:translate(-50%,-5px)}
+}
+@media(prefers-reduced-motion:reduce){
+  .habit,.habit .check,#bar,#percent,.nav-item{
+    transition:none!important;animation:none!important;
+  }
+}
+
+/* V12 FIX — conecta las microinteracciones con el markup real de My Habits */
+.habit .check{transition:transform .24s cubic-bezier(.2,.8,.2,1),background .22s ease,border-color .22s ease;will-change:transform}
+.habit.done .check{animation:checkPop .28s cubic-bezier(.2,.8,.2,1)}
+.today-card{position:relative;overflow:hidden}
+.today-card.complete::after{content:"";position:absolute;inset:-1px;border-radius:inherit;border:1px solid rgba(255,255,255,.28);opacity:0;pointer-events:none}
+.today-card.complete.flash::after{animation:completeRing .65s ease-out}
+#percent{display:inline-block;transition:transform .35s cubic-bezier(.2,.8,.2,1),opacity .2s ease}
+
+.v12-tap{animation:tapPulse .22s ease}
+@keyframes tapPulse{50%{transform:scale(.975)}}
+
+/* V13 — landing / presentación */
+#introScreen{
+  overflow-y:auto;
+  overflow-x:hidden;
+  align-items:flex-start;
+  justify-content:center;
+  padding:0;
+  background:
+    radial-gradient(circle at 50% 8%,rgba(255,255,255,.075),transparent 25%),
+    #080808;
+  -webkit-overflow-scrolling:touch;
+}
+#introScreen .intro-grid{opacity:.12}
+#introScreen .intro-orbit{top:7vh}
+.v13-landing{
+  position:relative;
+  z-index:4;
+  width:min(520px,100%);
+  min-height:100%;
+  padding:30px 22px 42px;
+}
+.v13-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:54px;
+  opacity:0;
+  animation:v13Reveal .7s cubic-bezier(.2,.8,.2,1) .05s forwards;
+}
+.v13-brand{
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:2.8px;
+}
+.v13-tag{
+  font-size:10px;
+  letter-spacing:1.8px;
+  color:#777;
+}
+.v13-hero{
+  text-align:center;
+  opacity:0;
+  animation:v13Reveal .8s cubic-bezier(.2,.8,.2,1) .16s forwards;
+}
+.v13-mark{
+  width:78px;
+  height:78px;
+  margin:0 auto 24px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(255,255,255,.22);
+  border-radius:24px;
+  font-size:36px;
+  font-weight:700;
+  letter-spacing:-4px;
+  background:linear-gradient(145deg,#191919,#090909);
+  box-shadow:0 0 55px rgba(255,255,255,.055);
+}
+.v13-title{
+  margin:0;
+  font-size:clamp(42px,12vw,62px);
+  line-height:.92;
+  letter-spacing:-3px;
+}
+.v13-copy{
+  max-width:360px;
+  margin:22px auto 0;
+  color:#9a9a9a;
+  font-size:17px;
+  line-height:1.5;
+}
+.v13-copy strong{color:#f5f5f5;font-weight:600}
+.v13-demo{
+  margin:42px auto 0;
+  max-width:390px;
+  padding:18px;
+  border:1px solid #292929;
+  border-radius:24px;
+  background:rgba(17,17,17,.88);
+  text-align:left;
+  box-shadow:0 22px 70px rgba(0,0,0,.38);
+  opacity:0;
+  transform:translateY(12px);
+  animation:v13Reveal .8s cubic-bezier(.2,.8,.2,1) .3s forwards;
+}
+.v13-demo-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:10px;
+}
+.v13-demo-label{font-size:12px;color:#777}
+.v13-demo-title{font-size:22px;font-weight:700;letter-spacing:-.6px;margin-top:4px}
+.v13-demo-percent{font-size:24px;font-weight:700}
+.v13-demo-bar{
+  height:7px;
+  margin:15px 0 16px;
+  background:#292929;
+  border-radius:99px;
+  overflow:hidden;
+}
+.v13-demo-bar span{
+  display:block;
+  width:75%;
+  height:100%;
+  background:#f5f5f5;
+  border-radius:99px;
+}
+.v13-demo-habit{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 0;
+  border-top:1px solid #252525;
+  font-size:14px;
+}
+.v13-check{
+  width:18px;height:18px;border:1px solid #555;border-radius:6px;
+  display:grid;place-items:center;font-size:11px;
+}
+.v13-check.done{background:#f5f5f5;color:#111;border-color:#f5f5f5}
+.v13-check.done::before{content:"✓"}
+.v13-section{
+  margin-top:62px;
+  opacity:0;
+  animation:v13Reveal .8s cubic-bezier(.2,.8,.2,1) .42s forwards;
+}
+.v13-eyebrow{
+  color:#777;
+  font-size:10px;
+  letter-spacing:2.4px;
+  margin-bottom:18px;
+}
+.v13-features{display:grid;gap:10px}
+.v13-feature{
+  display:grid;
+  grid-template-columns:34px 1fr;
+  gap:13px;
+  align-items:start;
+  padding:17px 0;
+  border-top:1px solid #252525;
+}
+.v13-feature:last-child{border-bottom:1px solid #252525}
+.v13-number{
+  color:#666;
+  font-size:11px;
+  padding-top:3px;
+}
+.v13-feature h3{
+  margin:0 0 5px;
+  font-size:17px;
+  letter-spacing:-.3px;
+}
+.v13-feature p{
+  margin:0;
+  color:#858585;
+  font-size:13px;
+  line-height:1.45;
+}
+.v13-cta{
+  margin-top:48px;
+  text-align:center;
+  opacity:0;
+  animation:v13Reveal .8s cubic-bezier(.2,.8,.2,1) .55s forwards;
+}
+.v13-start{
+  width:100%;
+  max-width:390px;
+  padding:16px 20px;
+  border-radius:15px;
+  background:#f5f5f5;
+  color:#0b0b0b;
+  font-weight:700;
+  font-size:15px;
+  letter-spacing:-.1px;
+  transition:transform .18s ease,opacity .18s ease;
+}
+.v13-start:active{transform:scale(.985)}
+.v13-note{
+  margin-top:14px;
+  color:#626262;
+  font-size:9px;
+  letter-spacing:2.5px;
+}
+.v13-mantra{
+  margin:48px auto 0;
+  text-align:center;
+  color:#5f5f5f;
+  font-size:11px;
+  letter-spacing:2px;
+}
+@keyframes v13Reveal{
+  from{opacity:0;transform:translateY(14px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@media(max-width:390px){
+  .v13-landing{padding:24px 18px 36px}
+  .v13-top{margin-bottom:42px}
+  .v13-title{font-size:46px}
+  .v13-copy{font-size:16px}
+  .v13-demo{margin-top:34px}
+}
+@media(prefers-reduced-motion:reduce){
+  .v13-top,.v13-hero,.v13-demo,.v13-section,.v13-cta{
+    animation:none!important;opacity:1;transform:none
+  }
+}
+
+
+/* V14 — Landing de conversión */
+#introScreen.v14-intro{overflow-y:auto;overflow-x:hidden;align-items:flex-start;justify-content:center;padding:0;background:radial-gradient(circle at 50% 0%,rgba(255,255,255,.08),transparent 28%),#070707}
+.v14-wrap{position:relative;z-index:5;width:min(520px,100%);min-height:100%;padding:26px 20px 48px}
+.v14-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:54px}
+.v14-logo{font-size:12px;font-weight:800;letter-spacing:2.8px}.v14-login{color:#999;font-size:11px;padding:8px 0;background:none;border:0}
+.v14-hero{text-align:center}.v14-kicker{display:inline-flex;align-items:center;gap:8px;color:#858585;font-size:9px;letter-spacing:2.2px;margin-bottom:18px}.v14-kicker:before{content:"";width:5px;height:5px;border-radius:50%;background:#f2f2f2}
+.v14-hero h1{margin:0;font-size:clamp(44px,12vw,64px);line-height:.91;letter-spacing:-3.6px}.v14-hero p{max-width:370px;margin:21px auto 0;color:#9a9a9a;font-size:16px;line-height:1.5}.v14-hero p strong{color:#f4f4f4}
+.v14-cta{width:100%;margin-top:27px;padding:16px 18px;border-radius:15px;border:1px solid #f2f2f2;background:#f2f2f2;color:#080808;font-weight:750;font-size:15px}
+.v14-subcta{display:block;margin-top:12px;color:#6f6f6f;font-size:10px}
+.v14-proof{margin:39px 0 0;padding:18px;border:1px solid #282828;border-radius:22px;background:rgba(16,16,16,.88);box-shadow:0 25px 75px rgba(0,0,0,.35)}
+.v14-proof-top{display:flex;justify-content:space-between;align-items:flex-start}.v14-label{font-size:9px;color:#707070;letter-spacing:2px}.v14-proof h2{margin:7px 0 0;font-size:21px}.v14-percent{font-size:22px;font-weight:750}
+.v14-bar{height:6px;background:#292929;border-radius:99px;margin:15px 0;overflow:hidden}.v14-bar span{display:block;width:75%;height:100%;background:#f2f2f2;border-radius:99px}
+.v14-mini{display:flex;align-items:center;gap:9px;padding:9px 0;border-top:1px solid #252525;font-size:12px;color:#d0d0d0}.v14-mini i{width:17px;height:17px;border-radius:6px;border:1px solid #555;display:grid;place-items:center;font-style:normal;font-size:10px}.v14-mini.done i{background:#f2f2f2;color:#080808;border-color:#f2f2f2}.v14-mini.done i:before{content:"✓"}
+.v14-section{margin-top:48px}.v14-eyebrow{color:#6d6d6d;font-size:9px;letter-spacing:2.2px;margin-bottom:16px}.v14-point{display:grid;grid-template-columns:30px 1fr;gap:10px;padding:16px 0;border-top:1px solid #252525}.v14-point:last-child{border-bottom:1px solid #252525}.v14-num{color:#666;font-size:10px}.v14-point h3{margin:0 0 4px;font-size:15px}.v14-point p{margin:0;color:#777;font-size:12px;line-height:1.45}
+.v14-trial{margin-top:44px;padding:22px 18px;text-align:center;border:1px solid #303030;border-radius:20px;background:linear-gradient(145deg,#151515,#0b0b0b)}.v14-trial strong{display:block;font-size:24px}.v14-trial span{display:block;margin-top:7px;color:#777;font-size:11px}.v14-price{display:flex;justify-content:center;gap:8px;margin-top:16px;color:#aaa;font-size:11px}.v14-price b{color:#f2f2f2}
+.v14-foot{margin-top:35px;text-align:center;color:#565656;font-size:9px;letter-spacing:2px;line-height:1.7}.v14-foot strong{color:#858585}
+.v14-fade{opacity:0;transform:translateY(12px);animation:v14Reveal .7s cubic-bezier(.2,.8,.2,1) forwards}.v14-d1{animation-delay:.05s}.v14-d2{animation-delay:.12s}.v14-d3{animation-delay:.2s}.v14-d4{animation-delay:.28s}.v14-d5{animation-delay:.36s}.v14-d6{animation-delay:.44s}
+@keyframes v14Reveal{to{opacity:1;transform:translateY(0)}}@media(max-width:390px){.v14-wrap{padding:22px 17px 38px}.v14-nav{margin-bottom:42px}.v14-hero h1{font-size:47px}}@media(prefers-reduced-motion:reduce){.v14-fade{animation:none!important;opacity:1;transform:none}}
+
+
+/* V15 — cuentas: interfaz preparada para autenticación real */
+.v15-auth{
+  position:fixed;inset:0;z-index:10000;display:none;overflow-y:auto;
+  background:radial-gradient(circle at 50% 0%,rgba(255,255,255,.07),transparent 30%),#070707;
+  padding:24px 20px 40px;
+}
+.v15-auth.show{display:block}
+.v15-auth-wrap{width:min(430px,100%);margin:0 auto;padding-top:12px}
+.v15-auth-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:58px}
+.v15-auth-brand{font-size:12px;font-weight:800;letter-spacing:2.8px}
+.v15-close{border:0;background:none;color:#777;font-size:25px;line-height:1;padding:4px}
+.v15-auth-head{text-align:center;margin-bottom:32px}
+.v15-auth-kicker{color:#777;font-size:9px;letter-spacing:2.2px;margin-bottom:14px}
+.v15-auth-head h2{margin:0;font-size:38px;line-height:1;letter-spacing:-2px}
+.v15-auth-head p{color:#777;font-size:13px;line-height:1.5;margin:14px auto 0;max-width:320px}
+.v15-form{display:grid;gap:11px}
+.v15-input{
+  width:100%;box-sizing:border-box;padding:15px 15px;border-radius:13px;
+  border:1px solid #2b2b2b;background:#111;color:#eee;outline:none;
+  font-size:14px;
+}
+.v15-input:focus{border-color:#686868}
+.v15-primary{
+  width:100%;padding:15px;border:1px solid #f2f2f2;border-radius:13px;
+  background:#f2f2f2;color:#090909;font-weight:750;font-size:14px;
+}
+.v15-divider{display:flex;align-items:center;gap:10px;color:#555;font-size:9px;letter-spacing:1.5px;margin:22px 0}
+.v15-divider:before,.v15-divider:after{content:"";height:1px;background:#252525;flex:1}
+.v15-social{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.v15-secondary{
+  padding:14px 10px;border:1px solid #2b2b2b;border-radius:13px;
+  background:#111;color:#ddd;font-weight:600;font-size:12px;
+}
+.v15-switch{text-align:center;margin-top:22px;color:#777;font-size:11px}
+.v15-switch button{border:0;background:none;color:#eee;font-weight:700;font-size:11px}
+.v15-note{text-align:center;color:#555;font-size:9px;line-height:1.5;margin-top:25px}
+.v15-msg{display:none;padding:10px 12px;border-radius:10px;background:#171717;border:1px solid #2c2c2c;color:#aaa;font-size:11px;line-height:1.4}
+.v15-msg.show{display:block}
+@media(max-width:390px){
+  .v15-auth{padding:20px 17px 32px}.v15-auth-top{margin-bottom:45px}.v15-auth-head h2{font-size:34px}
+}
+
+
+/* V16 — autenticación real preparada con Supabase */
+.v16-status{
+  display:none;padding:10px 12px;margin-top:12px;border-radius:10px;
+  border:1px solid #2c2c2c;background:#151515;color:#aaa;font-size:11px;line-height:1.45;
+}
+.v16-status.show{display:block}
+.v16-account{
+  display:none;position:fixed;right:18px;top:18px;z-index:9998;
+  padding:9px 12px;border:1px solid #2b2b2b;border-radius:12px;
+  background:#111;color:#aaa;font-size:10px;max-width:180px;
+}
+.v16-account.show{display:block}
+.v16-account button{margin-left:8px;border:0;background:none;color:#eee;font-size:10px}
+
+</style></head><body>
+
+<div id="introScreen" class="v14-intro" aria-label="Landing de My Habits">
+  <div class="intro-grid"></div>
+  <div class="intro-orbit"></div>
+  <div class="v14-wrap">
+    <div class="v14-nav v14-fade v14-d1">
+      <div class="v14-logo">MY HABITS</div>
+      <button class="v14-login" type="button" onclick="openLoginV15()">Iniciar sesión</button>
+    </div>
+
+    <section class="v14-hero">
+      <div class="v14-kicker v14-fade v14-d2">DISCIPLINA DIARIA</div>
+      <h1 class="v14-fade v14-d2">NO NECESITAS<br>MOTIVACIÓN.</h1>
+      <p class="v14-fade v14-d3">Necesitas <strong>cumplirte.</strong><br>Construye hábitos. Cumple tus días. Mide tu constancia.</p>
+      <button class="v14-cta v14-fade v14-d3" type="button" onclick="openSignupV15()">Empezar 7 días gratis</button>
+      <span class="v14-subcta v14-fade v14-d4">Acceso completo durante tu prueba · Cancela cuando quieras</span>
+    </section>
+
+    <section class="v14-proof v14-fade v14-d4">
+      <div class="v14-proof-top">
+        <div><div class="v14-label">ASÍ SE VE TU DÍA</div><h2>Hoy</h2></div>
+        <div class="v14-percent">75%</div>
+      </div>
+      <div class="v14-bar"><span></span></div>
+      <div class="v14-mini done"><i></i>Entrenamiento</div>
+      <div class="v14-mini done"><i></i>Tomar agua</div>
+      <div class="v14-mini done"><i></i>Leer 20 minutos</div>
+      <div class="v14-mini"><i></i>Dormir a tiempo</div>
+    </section>
+
+    <section class="v14-section v14-fade v14-d5">
+      <div class="v14-eyebrow">TODO EN UN SOLO LUGAR</div>
+      <div class="v14-point"><div class="v14-num">01</div><div><h3>Elige tus hábitos.</h3><p>Crea una rutina que tenga sentido para ti.</p></div></div>
+      <div class="v14-point"><div class="v14-num">02</div><div><h3>Cumple tu día.</h3><p>Marca lo que hiciste y ve tu progreso en tiempo real.</p></div></div>
+      <div class="v14-point"><div class="v14-num">03</div><div><h3>Mide tu constancia.</h3><p>Rachas, calendario y estadísticas para ver tu avance.</p></div></div>
+    </section>
+
+    <section class="v14-trial v14-fade v14-d6">
+      <strong>7 días gratis.</strong>
+      <span>Después elige el plan que mejor se adapte a ti.</span>
+      <div class="v14-price"><b>Semanal</b> · <b>Mensual</b> · <b>Anual</b></div>
+    </section>
+
+    <div class="v14-foot v14-fade v14-d6"><strong>NO PROMETAS. CUMPLE.</strong><br>MY HABITS</div>
+  </div>
+</div>
+
+<div id="v16Account" class="v16-account"></div>
+<div id="v15Auth" class="v15-auth" aria-hidden="true">
+  <div class="v15-auth-wrap">
+    <div class="v15-auth-top">
+      <div class="v15-auth-brand">MY HABITS</div>
+      <button class="v15-close" type="button" onclick="closeAuthV15()" aria-label="Cerrar">×</button>
+    </div>
+
+    <div class="v15-auth-head">
+      <div class="v15-auth-kicker" id="v15AuthKicker">CREA TU CUENTA</div>
+      <h2 id="v15AuthTitle">Empieza tu prueba.</h2>
+      <p id="v15AuthDescription">Guarda tus hábitos y lleva tu progreso contigo.</p>
+    </div>
+
+    <form class="v15-form" onsubmit="return submitAuthV15(event)">
+      <div id="v15NameWrap" style="display:none">
+        <input id="v15Name" class="v15-input" type="text" autocomplete="name" placeholder="Nombre">
+      </div>
+      <input id="v15Email" class="v15-input" type="email" autocomplete="email" placeholder="Correo electrónico" required>
+      <input id="v15Password" class="v15-input" type="password" autocomplete="new-password" placeholder="Contraseña" minlength="8" required>
+      <div id="v15ConfirmWrap">
+        <input id="v15Confirm" class="v15-input" type="password" autocomplete="new-password" placeholder="Confirmar contraseña" minlength="8" required>
+      </div>
+      <div id="v15Msg" class="v15-msg"></div><div id="v16Status" class="v16-status"></div>
+      <button id="v15Submit" class="v15-primary" type="submit">Crear cuenta</button>
+    </form>
+
+    <div class="v15-divider">O CONTINÚA CON</div>
+    <div class="v15-social">
+      <button class="v15-secondary" type="button" onclick="socialAuthV15('Google')">Google</button>
+      <button class="v15-secondary" type="button" onclick="socialAuthV15('Apple')">Apple</button>
+    </div>
+
+    <div class="v15-switch">
+      <span id="v15SwitchText">¿Ya tienes una cuenta?</span>
+      <button id="v15SwitchButton" type="button" onclick="toggleAuthV15()">Iniciar sesión</button>
+    </div>
+
+    <div class="v15-note">
+      La autenticación real se conectará en la siguiente etapa con una base de datos y proveedor de identidad.
+    </div>
+  </div>
+</div>
+
+<div id="v14LoginModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.72);backdrop-filter:blur(10px);padding:22px;align-items:center;justify-content:center">
+<div style="width:min(390px,100%);background:#111;border:1px solid #2d2d2d;border-radius:22px;padding:24px;box-shadow:0 30px 90px rgba(0,0,0,.55)">
+<div style="font-size:11px;letter-spacing:2px;color:#777">MY HABITS</div>
+<div style="font-size:25px;font-weight:750;margin-top:8px">Tu cuenta viene después.</div>
+<p style="color:#888;font-size:13px;line-height:1.5">La autenticación se conectará cuando integremos la base de datos y cuentas de usuario.</p>
+<button type="button" onclick="closeLoginV14()" style="width:100%;padding:14px;border:0;border-radius:13px;background:#f2f2f2;color:#090909;font-weight:700">Volver</button>
+</div></div>
+
+<div id="toastV12" class="toast-v12"></div>
+<div class="app">
+<section id="home"><div class="top"><div><div class="muted" id="date"></div><h1>Buenos días.</h1></div><button class="add" onclick="addHabit()">+ Hábito</button></div>
+<div class="card today-card" id="todayCard"><div class="status-row"><div><div class="muted">Hoy</div><h2 id="message" style="margin-top:5px">Vamos.</h2></div><div class="percent" id="percent">0%</div></div><div class="progress"><div class="bar" id="bar"></div></div><div class="muted" id="summary"></div></div><div id="habitList"></div></section>
+<section id="calendar" class="hidden"><div class="top"><div><div class="muted">CONSTANCIA</div><h1>Calendario</h1></div></div><div class="stat"><div class="card"><div class="muted">Racha actual</div><div class="num" id="streak">0</div></div><div class="card"><div class="muted">Días cumplidos</div><div class="num" id="daysDone">0</div></div></div>
+<div class="stat" style="margin-top:10px"><div class="card"><div class="muted">Mejor racha</div><div class="num" id="bestStreak">0</div></div><div class="card"><div class="muted">Constancia</div><div class="num" id="consistency">0%</div></div></div><div class="card" style="margin-top:14px"><div class="top" style="margin-bottom:14px"><button onclick="prevMonth()">‹</button><strong id="month"></strong><button onclick="nextMonth()">›</button></div><div class="grid" id="cal"></div></div></section>
+<section id="stats" class="hidden"><div class="top"><div><div class="muted">DATOS</div><h1>Estadísticas</h1></div></div><div class="stat"><div class="card"><div class="muted">Últimos 7 días</div><div class="num" id="stats7">0%</div></div><div class="card"><div class="muted">Últimos 30 días</div><div class="num" id="stats30">0%</div></div></div><div class="card" style="margin-top:14px"><div class="muted">Cumplimiento · 7 días</div><div id="weekChart" class="chart"></div></div><div class="card" style="margin-top:14px"><div class="muted">Hábitos · últimos 30 días</div><div id="habitStats"></div></div><div class="card" style="margin-top:14px"><div class="metric-row"><div><div class="muted">Mejor día de la semana</div><div class="rank-name" id="bestWeekday">—</div></div><div class="metric-value" id="bestWeekdayPct">0%</div></div><div class="metric-row"><div><div class="muted">Hábitos completados</div><div class="small">Últimos 30 días</div></div><div class="metric-value" id="totalChecks">0</div></div></div></section><section id="manage" class="hidden"><div class="top"><div><div class="muted">PERSONALIZA</div><h1>Mis hábitos</h1></div></div><div class="card"><div class="muted">Agregar hábito</div><input id="newHabit" placeholder="Ej. Leer 20 minutos"><button class="primary" onclick="addFromInput()">Agregar</button></div><div class="card"><div class="muted">Recordatorios</div><div class="notice" style="margin-top:7px">Elige una hora para cada hábito. Las notificaciones del navegador requieren permiso.</div><button class="primary permission" onclick="requestNotifications()">Activar notificaciones</button><div id="reminderStatus" class="notice" style="margin-top:8px"></div></div><div id="manageList"></div></section></div>
+<nav class="tabs"><button class="active" onclick="show('home',this)">Hoy</button><button onclick="show('calendar',this)">Calendario</button><button onclick="show('stats',this)">Stats</button><button onclick="show('manage',this)">Hábitos</button></nav>
+
+<script>
+const KEY="myhabits-v6";
+const OLD_KEY="myhabits-v2";
+const uid=()=>`h-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`;
+const pad=n=>String(n).padStart(2,"0");
+const key=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const todayKey=key(new Date());
+
+const DEFAULT_HABITS=["Entrenamiento","Tomar agua","Leer 20 minutos","Dormir a tiempo"];
+
+function migrate(){
+  const current=JSON.parse(localStorage.getItem(KEY)||"null");
+  if(current && Array.isArray(current.habits)){
+    // V6 ya existe: normaliza por seguridad.
+    current.habits=current.habits.map(h=>typeof h==="string"?{id:uid(),name:h}:h).filter(h=>h&&h.id&&h.name);
+    current.archive=current.archive||{};
+    current.habits.forEach(h=>current.archive[h.id]=h.name);
+    current.days=current.days||{};
+    current.reminders=current.reminders||{};
+    localStorage.setItem(KEY,JSON.stringify(current));
+    return current;
+  }
+
+  const old=JSON.parse(localStorage.getItem(OLD_KEY)||"null");
+  const habits=(old?.habits?.length?old.habits:DEFAULT_HABITS).map(name=>({id:uid(),name:String(name)}));
+  const archive={};
+  habits.forEach(h=>archive[h.id]=h.name);
+  const days={};
+
+  if(old?.days){
+    Object.entries(old.days).forEach(([date,states])=>{
+      const ids=habits.map(h=>h.id);
+      const out={habitIds:ids,states:{}};
+      Object.entries(states||{}).forEach(([index,value])=>{
+        const i=Number(index);
+        if(Number.isInteger(i) && habits[i] && value===true) out.states[habits[i].id]=true;
+      });
+      if(Object.keys(out.states).length || Object.keys(states||{}).length){
+        days[date]=out;
+      }
+    });
+  }
+
+  // Also migrate V1's "today" if V2 history is absent.
+  if(old?.today && !days[todayKey]){
+    const ids=habits.map(h=>h.id), states={};
+    Object.entries(old.today).forEach(([index,value])=>{
+      const i=Number(index);
+      if(Number.isInteger(i) && habits[i] && value===true) states[habits[i].id]=true;
+    });
+    days[todayKey]={habitIds:ids,states};
+  }
+
+  const fresh={habits,archive,days,reminders:{}};
+  localStorage.setItem(KEY,JSON.stringify(fresh));
+  return fresh;
+}
+
+let data=migrate();
+data.reminders=data.reminders||{};
+let viewDate=new Date();
+let reminderTimer=null;
+
+function save(){localStorage.setItem(KEY,JSON.stringify(data));}
+
+function activeIds(){return data.habits.map(h=>h.id);}
+
+function ensureToday(){
+  if(!data.days[todayKey]){
+    data.days[todayKey]={habitIds:activeIds(),states:{}};
+  }else if(!Array.isArray(data.days[todayKey].habitIds)){
+    data.days[todayKey].habitIds=activeIds();
+    data.days[todayKey].states=data.days[todayKey].states||{};
+  }
+  return data.days[todayKey];
+}
+
+function getDay(k){
+  return data.days[k] || null;
+}
+
+function dayHabitIds(k){
+  const d=getDay(k);
+  if(d && Array.isArray(d.habitIds)) return d.habitIds;
+  return activeIds();
+}
+
+function dayStates(k){
+  const d=getDay(k);
+  return d?.states || {};
+}
+
+function pct(k){
+  const ids=dayHabitIds(k);
+  if(!ids.length)return 0;
+  const states=dayStates(k);
+  const done=ids.reduce((n,id)=>n+(states[id]===true?1:0),0);
+  return Math.round(done/ids.length*100);
+}
+
+function complete(k){return pct(k)>=80;}
+
+function greeting(){
+  const h=new Date().getHours();
+  return h<12?"Buenos días.":h<19?"Buenas tardes.":"Buenas noches.";
+}
+function updateHeader(){
+  document.getElementById("date").textContent=new Date().toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long"});
+  document.querySelector("#home h1").textContent=greeting();
+}
+updateHeader();
+
+function renderHome(){
+  const l=document.getElementById("habitList");
+  l.innerHTML="";
+  const x=ensureToday().states;
+
+  data.habits.forEach(h=>{
+    const on=x[h.id]===true;
+    const b=document.createElement("button");
+    b.className="habit"+(on?" done":"");
+    b.onclick=()=>{
+      const d=ensureToday();
+      d.states[h.id]=!on;
+      save(); render();
+    };
+    b.innerHTML=`<span class="check">${on?"✓":""}</span><span class="name">${escapeHtml(h.name)}</span>`;
+    l.appendChild(b);
+  });
+
+  const p=pct(todayKey);
+  const done=data.habits.reduce((n,h)=>n+(x[h.id]===true?1:0),0);
+  const percentEl=document.getElementById("percent");
+  const oldPercent=Number(percentEl.dataset.value||0);
+  document.getElementById("bar").style.width=p+"%";
+  percentEl.textContent=p+"%";
+  percentEl.dataset.value=String(p);
+  document.getElementById("summary").textContent=`${done} de ${data.habits.length} hábitos cumplidos`;
+  document.getElementById("message").textContent=
+    p>=100?"Día completo. Te cumpliste.":
+    p>=80?"Felicidades. Lo bueno dominó.":
+    p>=50?"No fue perfecto. Pero avanzaste.":
+    p>0?"Hoy no salió completo. Mañana continúa.":"Vamos.";
+
+  const card=document.getElementById("todayCard");
+  card.classList.toggle("complete",p>=80);
+
+  if(oldPercent!==p){
+    v12AnimateValue(percentEl);
+    v12AnimateMessage(document.getElementById("message"));
+  }
+  if(p===100 && oldPercent!==100){
+    card.classList.remove("flash");
+    void card.offsetWidth;
+    card.classList.add("flash");
+    v12Toast("Día completo. Te cumpliste.");
+  }
+}
+
+function renderCalendar(){
+  const y=viewDate.getFullYear(),m=viewDate.getMonth(),c=document.getElementById("cal");
+  c.innerHTML="";
+  document.getElementById("month").textContent=viewDate.toLocaleDateString("es-MX",{month:"long",year:"numeric"});
+  ["D","L","M","M","J","V","S"].forEach(x=>{
+    const e=document.createElement("div");e.className="dow";e.textContent=x;c.appendChild(e);
+  });
+  for(let i=0;i<new Date(y,m,1).getDay();i++)c.appendChild(document.createElement("div"));
+  for(let d=1;d<=new Date(y,m+1,0).getDate();d++){
+    const dt=new Date(y,m,d),k=key(dt),e=document.createElement("button");
+    e.className="day"+(complete(k)?" done":"")+(k===todayKey?" today":"");
+    e.textContent=d;e.onclick=()=>showDayDetail(k);c.appendChild(e);
+  }
+  updateStats();
+}
+
+function updateStats(){
+  const completedDates=Object.keys(data.days).filter(k=>complete(k)).sort();
+  const count=completedDates.length;
+
+  let current=0,d=new Date();
+  while(complete(key(d))){current++;d.setDate(d.getDate()-1);}
+
+  let best=0,run=0,prev=null;
+  completedDates.forEach(k=>{
+    if(prev){
+      const a=new Date(prev+"T12:00:00"),b=new Date(k+"T12:00:00");
+      const diff=Math.round((b-a)/86400000);
+      run=diff===1?run+1:1;
+    }else run=1;
+    best=Math.max(best,run);prev=k;
+  });
+
+  const recordedDates=Object.keys(data.days).filter(k=>{
+    const d=data.days[k];
+    return d && Array.isArray(d.habitIds) && d.habitIds.length>0;
+  });
+  const totalDays=Math.max(1,recordedDates.length);
+  const consistency=Math.round(count/totalDays*100);
+
+  document.getElementById("daysDone").textContent=count;
+  document.getElementById("streak").textContent=current;
+  document.getElementById("bestStreak").textContent=best;
+  document.getElementById("consistency").textContent=consistency+"%";
+}
+
+function renderManage(){
+  const b=document.getElementById("manageList");
+  b.innerHTML="";
+  data.habits.forEach(h=>{
+    const r=data.reminders[h.id]||{enabled:false,time:"20:00"};
+    const e=document.createElement("div");
+    e.className="habit manage-card";
+    e.innerHTML=`
+      <div style="flex:1;min-width:0">
+        <div class="name">${escapeHtml(h.name)}</div>
+        <div class="reminder-row">
+          <div class="reminder-label">Recordatorio</div>
+          <div class="reminder-controls">
+            <input class="reminder-time" type="time" value="${escapeHtml(r.time||"20:00")}" onchange="setReminderTime('${h.id}',this.value)">
+            <label class="switch" title="Activar recordatorio">
+              <input type="checkbox" ${r.enabled?"checked":""} onchange="toggleReminder('${h.id}',this.checked)">
+              <span class="switch-ui"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="manage-actions">
+        <button class="manage-btn edit" onclick="editHabit('${h.id}')">Editar</button>
+        <button class="manage-btn delete" onclick="removeHabit('${h.id}')">Eliminar</button>
+      </div>`;
+    b.appendChild(e);
+  });
+  updateReminderStatus();
+}
+
+function updateReminderStatus(){
+  const el=document.getElementById("reminderStatus");
+  if(!el)return;
+  if(!('Notification' in window)){
+    el.textContent="Este navegador no admite notificaciones web.";
+    return;
+  }
+  if(Notification.permission==="granted"){
+    const active=Object.values(data.reminders).filter(r=>r&&r.enabled).length;
+    el.textContent=active?`${active} recordatorio${active===1?"":"s"} activo${active===1?"":"s"}.`:"Notificaciones activadas. Activa un recordatorio para usarlo.";
+  }else if(Notification.permission==="denied"){
+    el.textContent="Las notificaciones están bloqueadas en el navegador. Puedes habilitarlas desde los ajustes del sitio.";
+  }else{
+    el.textContent="Aún no se han concedido permisos para notificaciones.";
+  }
+}
+
+async function requestNotifications(){
+  if(!('Notification' in window)){
+    alert("Este navegador no admite notificaciones web.");
+    return;
+  }
+  try{
+    const permission=await Notification.requestPermission();
+    updateReminderStatus();
+    if(permission==="granted") checkReminders(true);
+  }catch(e){
+    console.error(e);
+  }
+}
+
+function setReminderTime(id,time){
+  if(!data.reminders[id])data.reminders[id]={enabled:false,time:"20:00"};
+  data.reminders[id].time=time||"20:00";
+  save();
+  updateReminderStatus();
+  checkReminders(false);
+}
+
+function toggleReminder(id,enabled){
+  if(!data.reminders[id])data.reminders[id]={enabled:false,time:"20:00"};
+  data.reminders[id].enabled=!!enabled;
+  save();
+  updateReminderStatus();
+  if(enabled && 'Notification' in window && Notification.permission!=="granted") requestNotifications();
+  else checkReminders(false);
+}
+
+function checkReminders(showIfDue){
+  if(!('Notification' in window) || Notification.permission!=="granted")return;
+  const now=new Date();
+  const hh=pad(now.getHours()),mm=pad(now.getMinutes());
+  const day=key(now);
+  const markerKey="myhabits-reminder-last";
+  const last=JSON.parse(localStorage.getItem(markerKey)||"{}");
+  Object.entries(data.reminders).forEach(([id,r])=>{
+    if(!r||!r.enabled||r.time!==`${hh}:${mm}`)return;
+    if(last[id]===day)return;
+    const habit=data.habits.find(h=>h.id===id);
+    if(!habit)return;
+    const states=ensureToday().states;
+    if(states[id]===true)return;
+    try{
+      new Notification("My Habits",{body:`Es momento de: ${habit.name}`});
+      last[id]=day;
+      localStorage.setItem(markerKey,JSON.stringify(last));
+    }catch(e){console.error(e);}
+  });
+}
+
+function startReminderTimer(){
+  if(reminderTimer)clearInterval(reminderTimer);
+  checkReminders(false);
+  reminderTimer=setInterval(()=>checkReminders(false),30000);
+}
+
+function addHabit(){
+  const h=prompt("¿Qué hábito quieres agregar?");
+  if(h?.trim()){
+    const habit={id:uid(),name:h.trim()};
+    data.habits.push(habit);
+    data.archive[habit.id]=habit.name;
+    if(data.days[todayKey] && Array.isArray(data.days[todayKey].habitIds))data.days[todayKey].habitIds.push(habit.id);
+    save();render();
+  }
+}
+
+function addFromInput(){
+  const e=document.getElementById("newHabit"),name=e.value.trim();
+  if(name){
+    const habit={id:uid(),name};
+    data.habits.push(habit);
+    data.archive[habit.id]=habit.name;
+    if(data.days[todayKey] && Array.isArray(data.days[todayKey].habitIds))data.days[todayKey].habitIds.push(habit.id);
+    e.value="";save();render();
+  }
+}
+
+function editHabit(id){
+  const habit=data.habits.find(h=>h.id===id);
+  if(!habit)return;
+  const name=prompt("Editar hábito:",habit.name);
+  if(name?.trim()){
+    habit.name=name.trim();
+    data.archive[id]=habit.name;
+    save();render();
+  }
+}
+
+function removeHabit(id){
+  const habit=data.habits.find(h=>h.id===id);
+  if(!habit)return;
+  if(confirm(`¿Eliminar "${habit.name}"?`)){
+    data.habits=data.habits.filter(h=>h.id!==id);
+    delete data.reminders[id];
+    const today=data.days[todayKey];
+    if(today?.habitIds){
+      today.habitIds=today.habitIds.filter(x=>x!==id);
+      delete today.states[id];
+    }
+    save();render();
+  }
+}
+
+function dateFromKey(k){return new Date(k+"T12:00:00");}
+function daysBack(n){
+  const out=[];const d=new Date();d.setHours(12,0,0,0);
+  for(let i=n-1;i>=0;i--){const x=new Date(d);x.setDate(d.getDate()-i);out.push(key(x));}
+  return out;
+}
+function statsForRange(n){
+  const ks=daysBack(n);let totalPct=0,daysWithData=0,completedChecks=0;const habitCounts={};
+  ks.forEach(k=>{
+    const d=data.days[k];
+    if(d&&Array.isArray(d.habitIds)&&d.habitIds.length){
+      daysWithData++;totalPct+=pct(k);const states=d.states||{};
+      d.habitIds.forEach(id=>{if(states[id]===true){completedChecks++;habitCounts[id]=(habitCounts[id]||0)+1;}});
+    }
+  });
+  return {ks,totalPct,daysWithData,completedChecks,habitCounts,avg:daysWithData?Math.round(totalPct/daysWithData):0};
+}
+function renderStats(){
+  const s7=statsForRange(7),s30=statsForRange(30);
+  document.getElementById("stats7").textContent=s7.avg+"%";
+  document.getElementById("stats30").textContent=s30.avg+"%";
+  document.getElementById("totalChecks").textContent=s30.completedChecks;
+  const chart=document.getElementById("weekChart");chart.innerHTML="";
+  s7.ks.forEach(k=>{
+    const col=document.createElement("div");col.className="chart-col";
+    const bar=document.createElement("div");bar.className="chart-bar";bar.style.height=Math.max(3,pct(k))+"%";
+    const lab=document.createElement("div");lab.className="chart-label";lab.textContent=dateFromKey(k).toLocaleDateString("es-MX",{weekday:"narrow"}).replace(".","");
+    col.append(bar,lab);chart.appendChild(col);
+  });
+  const hs=document.getElementById("habitStats");hs.innerHTML="";
+  const entries=data.habits.map(h=>({id:h.id,name:h.name,count:s30.habitCounts[h.id]||0})).sort((a,b)=>b.count-a.count);
+  if(!entries.length)hs.innerHTML='<div class="empty">No hay hábitos.</div>';
+  else entries.forEach(e=>{const row=document.createElement("div");row.className="metric-row";row.innerHTML=`<div><div class="rank-name">${escapeHtml(e.name)}</div></div><div class="metric-value">${e.count}</div>`;hs.appendChild(row);});
+  const weekdayTotals=Array(7).fill(0),weekdayDone=Array(7).fill(0);
+  s30.ks.forEach(k=>{const d=data.days[k];if(!d||!Array.isArray(d.habitIds)||!d.habitIds.length)return;const w=dateFromKey(k).getDay();weekdayTotals[w]++;if(complete(k))weekdayDone[w]++;});
+  let bestIdx=-1,bestPct=-1;
+  for(let i=0;i<7;i++)if(weekdayTotals[i]){const q=Math.round(weekdayDone[i]/weekdayTotals[i]*100);if(q>bestPct){bestPct=q;bestIdx=i;}}
+  const names=["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+  document.getElementById("bestWeekday").textContent=bestIdx<0?"—":names[bestIdx];
+  document.getElementById("bestWeekdayPct").textContent=bestIdx<0?"0%":bestPct+"%";
+}
+function prevMonth(){viewDate.setMonth(viewDate.getMonth()-1);renderCalendar();}
+function nextMonth(){viewDate.setMonth(viewDate.getMonth()+1);renderCalendar();}
+function show(id,b){
+  document.querySelectorAll("section").forEach(s=>s.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+  document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");render();
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function render(){renderHome();renderCalendar();renderManage();renderStats();}
+
+render();
+startReminderTimer();
+
+document.addEventListener('click',function(e){
+  const target=e.target.closest('.nav-item,.manage-btn,button');
+  if(!target)return;
+  target.classList.remove('v12-tap');
+  void target.offsetWidth;
+  target.classList.add('v12-tap');
+});
+
+</script>
+<div id="dayDetail" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:20;padding:22px 18px;display:flex;align-items:flex-end;justify-content:center">
+  <div class="card" style="width:min(520px,100%);margin:0;max-height:82vh;overflow:auto">
+    <div class="top" style="margin-bottom:14px"><div><div class="muted">RESUMEN DEL DÍA</div><h2 id="detailDate" style="margin-top:4px"></h2></div><button onclick="closeDayDetail()" style="font-size:24px;color:#888">×</button></div>
+    <div class="card" style="margin:0 0 12px"><div class="muted">Cumplimiento</div><div class="num" id="detailPct">0%</div></div>
+    <div id="detailList"></div>
+  </div>
+</div>
+<script>
+function showDayDetail(k){
+  const d=new Date(k+"T12:00:00"),ids=dayHabitIds(k),states=dayStates(k),p=pct(k);
+  document.getElementById("detailDate").textContent=d.toLocaleDateString("es-MX",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  document.getElementById("detailPct").textContent=p+"%";
+  const list=document.getElementById("detailList");list.innerHTML="";
+  if(!ids.length)list.innerHTML='<div class="empty">No había hábitos.</div>';
+  else ids.forEach(id=>{const name=data.archive[id]||data.habits.find(h=>h.id===id)?.name||"Hábito",done=states[id]===true,e=document.createElement("div");e.className="habit"+(done?" done":"");e.style.cursor="default";e.innerHTML=`<span class="check">${done?"✓":""}</span><span class="name">${escapeHtml(name)}</span>`;list.appendChild(e);});
+  document.getElementById("dayDetail").classList.remove("hidden");
+}
+function closeDayDetail(){document.getElementById("dayDetail").classList.add("hidden");}
+
+(function(){
+  const intro=document.getElementById('introScreen');
+  if(!intro)return;
+  document.body.classList.remove('app-ready');
+})();
+
+function v12AnimateValue(el){
+  if(!el)return;
+  el.classList.remove('percent-pop');
+  void el.offsetWidth;
+  el.classList.add('percent-pop');
+}
+function v12AnimateMessage(el){
+  if(!el)return;
+  el.classList.remove('message-pop');
+  void el.offsetWidth;
+  el.classList.add('message-pop');
+}
+function v12Toast(message){
+  const t=document.getElementById('toastV12');
+  if(!t)return;
+  t.textContent=message;
+  t.classList.remove('show');
+  void t.offsetWidth;
+  t.classList.add('show');
+}
+
+function startMyHabits(){
+  const intro=document.getElementById('introScreen');
+  if(!intro)return;
+  intro.classList.add('hide');
+  document.body.classList.add('app-ready');
+  try{localStorage.setItem('myhabits-intro-seen','1')}catch(e){}
+  setTimeout(()=>intro.remove(),600);
+}
+(function(){
+  try{
+    if(localStorage.getItem('myhabits-intro-seen')==='1'){
+      const intro=document.getElementById('introScreen');
+      if(intro){
+        intro.classList.add('hide');
+        document.body.classList.add('app-ready');
+        setTimeout(()=>intro.remove(),20);
+      }
+    }
+  }catch(e){}
+})();
+
+</script><script>
+function showLoginV14(){const m=document.getElementById('v14LoginModal');if(m)m.style.display='flex'}
+function closeLoginV14(){const m=document.getElementById('v14LoginModal');if(m)m.style.display='none'}
+</script>
+
+<script>
+let v15LoginMode=false;
+
+function openAuthV15(login=false){
+  v15LoginMode=login;
+  const a=document.getElementById('v15Auth');
+  if(!a)return;
+  a.classList.add('show');
+  a.setAttribute('aria-hidden','false');
+  updateAuthV15();
+}
+function closeAuthV15(){
+  const a=document.getElementById('v15Auth');
+  if(!a)return;
+  a.classList.remove('show');
+  a.setAttribute('aria-hidden','true');
+}
+function toggleAuthV15(){
+  v15LoginMode=!v15LoginMode;
+  updateAuthV15();
+}
+function updateAuthV15(){
+  const title=document.getElementById('v15AuthTitle');
+  const kicker=document.getElementById('v15AuthKicker');
+  const desc=document.getElementById('v15AuthDescription');
+  const submit=document.getElementById('v15Submit');
+  const nameWrap=document.getElementById('v15NameWrap');
+  const confirmWrap=document.getElementById('v15ConfirmWrap');
+  const confirm=document.getElementById('v15Confirm');
+  const switchText=document.getElementById('v15SwitchText');
+  const switchButton=document.getElementById('v15SwitchButton');
+  if(v15LoginMode){
+    kicker.textContent='BIENVENIDO DE VUELTA';
+    title.textContent='Continúa tu día.';
+    desc.textContent='Entra para seguir con tus hábitos y tu constancia.';
+    submit.textContent='Iniciar sesión';
+    nameWrap.style.display='none';
+    confirmWrap.style.display='none';
+    confirm.required=false;
+    switchText.textContent='¿No tienes una cuenta?';
+    switchButton.textContent='Crear cuenta';
+  }else{
+    kicker.textContent='CREA TU CUENTA';
+    title.textContent='Empieza tu prueba.';
+    desc.textContent='Guarda tus hábitos y lleva tu progreso contigo.';
+    submit.textContent='Crear cuenta';
+    nameWrap.style.display='block';
+    confirmWrap.style.display='block';
+    confirm.required=true;
+    switchText.textContent='¿Ya tienes una cuenta?';
+    switchButton.textContent='Iniciar sesión';
+  }
+}
+
+/* V16 — configuración: sustituir SOLO estos dos valores por los de tu proyecto.
+   Usa la publishable/anon key, nunca service_role. */
+const MY_HABITS_SUPABASE_URL = "";
+const MY_HABITS_SUPABASE_KEY = "";
+let myHabitsSupabase = null;
+
+function v16Configured(){
+  return Boolean(MY_HABITS_SUPABASE_URL && MY_HABITS_SUPABASE_KEY &&
+    window.supabase && typeof window.supabase.createClient === "function");
+}
+function initSupabaseV16(){
+  if(!v16Configured()) return false;
+  if(!myHabitsSupabase){
+    myHabitsSupabase = window.supabase.createClient(
+      MY_HABITS_SUPABASE_URL,
+      MY_HABITS_SUPABASE_KEY,
+      {auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}}
+    );
+    myHabitsSupabase.auth.onAuthStateChange((event,session)=>{
+      if(session?.user) v16SignedIn(session.user);
+      if(event === "SIGNED_OUT") v16SignedOut();
+    });
+  }
+  return true;
+}
+function v16Message(text){
+  const msg=document.getElementById('v15Msg');
+  if(msg){msg.textContent=text;msg.classList.add('show');}
+}
+function submitAuthV15(e){
+  e.preventDefault();
+  const email=document.getElementById('v15Email').value.trim();
+  const password=document.getElementById('v15Password').value;
+  const confirm=document.getElementById('v15Confirm').value;
+  const name=(document.getElementById('v15Name')?.value||'').trim();
+
+  if(!email || password.length<8){
+    v16Message('Usa un correo válido y una contraseña de al menos 8 caracteres.');
+    return false;
+  }
+  if(!v15LoginMode && password!==confirm){
+    v16Message('Las contraseñas no coinciden.');
+    return false;
+  }
+  if(!initSupabaseV16()){
+    v16Message('La cuenta está lista para conectarse. Falta configurar Supabase en el código de V16.');
+    return false;
+  }
+
+  (async()=>{
+    const submit=document.getElementById('v15Submit');
+    if(submit) submit.disabled=true;
+    try{
+      if(v15LoginMode){
+        const {data,error}=await myHabitsSupabase.auth.signInWithPassword({email,password});
+        if(error) throw error;
+        if(data?.user) v16SignedIn(data.user);
+      }else{
+        const {data,error}=await myHabitsSupabase.auth.signUp({
+          email,password,
+          options:{
+            data:{first_name:name},
+            emailRedirectTo:window.location.origin + window.location.pathname
+          }
+        });
+        if(error) throw error;
+        if(data?.session && data?.user){
+          v16SignedIn(data.user);
+        }else{
+          v16Message('Cuenta creada. Revisa tu correo para confirmar tu cuenta y después inicia sesión.');
+        }
+      }
+    }catch(err){
+      v16Message(v16FriendlyError(err));
+    }finally{
+      if(submit) submit.disabled=false;
+    }
+  })();
+  return false;
+}
+async function socialAuthV15(provider){
+  if(!initSupabaseV16()){
+    v16Message('Primero configura Supabase y habilita '+provider+' en Authentication → Providers.');
+    return;
+  }
+  const {error}=await myHabitsSupabase.auth.signInWithOAuth({
+    provider:provider.toLowerCase(),
+    options:{redirectTo:window.location.origin + window.location.pathname}
+  });
+  if(error) v16Message(v16FriendlyError(error));
+}
+function v16FriendlyError(err){
+  const message=(err?.message||'').toLowerCase();
+  if(message.includes('invalid login credentials')) return 'Correo o contraseña incorrectos.';
+  if(message.includes('email not confirmed')) return 'Primero confirma tu correo electrónico.';
+  if(message.includes('user already registered')) return 'Ese correo ya tiene una cuenta. Intenta iniciar sesión.';
+  if(message.includes('password')) return 'La contraseña no cumple los requisitos.';
+  return err?.message || 'No se pudo completar la operación. Intenta de nuevo.';
+}
+function v16SignedIn(user){
+  closeAuthV15();
+  const account=document.getElementById('v16Account');
+  if(account){
+    const email=user?.email||'Cuenta activa';
+    account.innerHTML='● '+email+' <button type="button" onclick="v16SignOut()">Salir</button>';
+    account.classList.add('show');
+  }
+  const intro=document.getElementById('introScreen');
+  if(intro) intro.style.display='none';
+  if(typeof window.renderApp==='function') window.renderApp();
+}
+function v16SignedOut(){
+  const account=document.getElementById('v16Account');
+  if(account) account.classList.remove('show');
+}
+async function v16SignOut(){
+  if(!initSupabaseV16()) return;
+  const {error}=await myHabitsSupabase.auth.signOut();
+  if(error) v16Message(v16FriendlyError(error));
+  else location.reload();
+}
+async function v16RestoreSession(){
+  if(!initSupabaseV16()) return;
+  const {data}=await myHabitsSupabase.auth.getSession();
+  if(data?.session?.user) v16SignedIn(data.session.user);
+}
+
+function openSignupV15(){openAuthV15(false)}
+function openLoginV15(){openAuthV15(true)}
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>window.addEventListener('load',()=>{setTimeout(v16RestoreSession,50)});</script>
+</body></html>
