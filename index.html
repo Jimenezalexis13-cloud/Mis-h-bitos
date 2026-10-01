@@ -1,6 +1,6 @@
 <!doctype html><html lang="es"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>My Habits V21 — Prueba</title>
+<title>My Habits V22 — Supabase</title>
 <style>
 *{box-sizing:border-box}
 html{background:#0b0b0b}
@@ -859,7 +859,7 @@ button:active,.nav-item:active,.manage-btn:active{transform:scale(.98)}
     </div>
 
     <div class="v15-note">
-      La autenticación real se conectará en la siguiente etapa con una base de datos y proveedor de identidad.
+      Cuenta y sesión conectadas con Supabase. Tus hábitos locales se mantienen mientras preparamos la sincronización en la nube.
     </div>
   </div>
 </div>
@@ -927,7 +927,7 @@ window.myHabitsBuildSyncEnvelope = myHabitsBuildSyncEnvelope;
 </script>
 
 <script>
-/* My Habits V21 — account/data model preparation.
+/* My Habits V22 — account/data model preparation.
    Local-only for now. Supabase will be connected later. */
 const MY_HABITS_DATA_MODEL = {
   version: 1,
@@ -954,7 +954,7 @@ window.myHabitsExportableState = myHabitsExportableState;
 </script>
 
 <script>
-/* My Habits V21 — Supabase-ready configuration.
+/* My Habits V23 — Supabase connected configuration.
    Never place a Supabase secret/service_role key in this  file. */
 const MY_HABITS_BACKEND = {
   provider: "supabase",
@@ -1526,8 +1526,8 @@ function updateAuthV15(){
 
 /* V16 — configuración: sustituir SOLO estos dos valores por los de tu proyecto.
    Usa la publishable/anon key, nunca service_role. */
-const MY_HABITS_SUPABASE_URL = "https://fqeyvyuelagoiymvelnj.supabase.co";
-const MY_HABITS_SUPABASE_KEY = "sb_publishable_DNCL5yOEedArvTX6DGRFCg_KQQa-7Xa";
+const MY_HABITS_SUPABASE_URL = MY_HABITS_BACKEND.url;
+const MY_HABITS_SUPABASE_KEY = MY_HABITS_BACKEND.publishableKey;
 let myHabitsSupabase = null;
 
 function v16Configured(){
@@ -1569,7 +1569,7 @@ function submitAuthV15(e){
     return false;
   }
   if(!initSupabaseV16()){
-    v16Message('La cuenta está lista para conectarse. Falta configurar Supabase en el código de V16.');
+    v16Message('No se pudo conectar con Supabase. Revisa la configuración del proyecto.');
     return false;
   }
 
@@ -1707,6 +1707,163 @@ function closeTrialV18(){
   t.classList.remove('show');
   t.setAttribute('aria-hidden','true');
 }
+</script>
+
+
+<script>
+/* MY HABITS V23 — Cloud habits sync.
+   Uses only the Supabase publishable key. Never use service_role/secret keys here. */
+let myHabitsCloud = null;
+let myHabitsCloudUser = null;
+let myHabitsCloudReady = false;
+
+function myHabitsCloudClient(){
+  if(myHabitsCloud) return myHabitsCloud;
+  if(!window.supabase || !MY_HABITS_BACKEND?.url || !MY_HABITS_BACKEND?.publishableKey) return null;
+  myHabitsCloud = window.supabase.createClient(
+    MY_HABITS_BACKEND.url,
+    MY_HABITS_BACKEND.publishableKey,
+    {auth:{autoRefreshToken:true,persistSession:true,detectSessionInUrl:true}}
+  );
+  return myHabitsCloud;
+}
+
+function myHabitsUuid(){
+  if(window.crypto?.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+    const r=Math.random()*16|0,v=c==='x'?r:(r&3|8);return v.toString(16);
+  });
+}
+
+function myHabitsRemapLocalIds(map){
+  Object.values(data.days||{}).forEach(day=>{
+    if(Array.isArray(day.habitIds)) day.habitIds=day.habitIds.map(id=>map[id]||id);
+    if(day.states){
+      const next={};
+      Object.entries(day.states).forEach(([id,value])=>{ next[map[id]||id]=value; });
+      day.states=next;
+    }
+  });
+  const nextArchive={};
+  Object.entries(data.archive||{}).forEach(([id,name])=>{nextArchive[map[id]||id]=name;});
+  data.archive=nextArchive;
+  data.habits=data.habits.map(h=>({...h,id:map[h.id]||h.id}));
+  save();
+}
+
+async function myHabitsCloudSyncHabits(){
+  const client=myHabitsCloudClient();
+  if(!client) return {ok:false,reason:'client'};
+  const {data:{session},error:sessionError}=await client.auth.getSession();
+  if(sessionError || !session?.user) return {ok:false,reason:'session'};
+  myHabitsCloudUser=session.user;
+  myHabitsCloudReady=true;
+
+  const userId=session.user.id;
+  const {data:remote,error:readError}=await client
+    .from('habits')
+    .select('id,name,created_at')
+    .eq('user_id',userId)
+    .order('created_at',{ascending:true});
+
+  if(readError) throw readError;
+
+  /* First cloud sync: if this user has no cloud habits, migrate the local habits. */
+  if(!remote?.length && data.habits.length){
+    const idMap={};
+    const rows=data.habits.map(h=>{
+      const newId=myHabitsUuid();
+      idMap[h.id]=newId;
+      return {id:newId,user_id:userId,name:h.name};
+    });
+    const {data:inserted,error:insertError}=await client
+      .from('habits')
+      .insert(rows)
+      .select('id,name,created_at');
+    if(insertError) throw insertError;
+    myHabitsRemapLocalIds(idMap);
+    myHabitsCloudUser=session.user;
+    return {ok:true,action:'uploaded',count:inserted?.length||rows.length};
+  }
+
+  /* If cloud already has habits, use cloud as the source of truth for the habit list. */
+  if(remote?.length){
+    data.habits=remote.map(h=>({id:h.id,name:h.name}));
+    data.archive=data.archive||{};
+    remote.forEach(h=>data.archive[h.id]=h.name);
+    data.days=data.days||{};
+    data.reminders=data.reminders||{};
+    save();
+    return {ok:true,action:'downloaded',count:remote.length};
+  }
+
+  return {ok:true,action:'empty',count:0};
+}
+
+async function myHabitsCloudCreateHabit(habit){
+  const client=myHabitsCloudClient();
+  if(!client || !myHabitsCloudUser) return;
+  const {error}=await client.from('habits').insert({
+    id:habit.id,
+    user_id:myHabitsCloudUser.id,
+    name:habit.name
+  });
+  if(error) console.error('My Habits cloud create error:',error);
+}
+
+async function myHabitsCloudUpdateHabit(habit){
+  const client=myHabitsCloudClient();
+  if(!client || !myHabitsCloudUser) return;
+  const {error}=await client.from('habits').update({name:habit.name})
+    .eq('id',habit.id).eq('user_id',myHabitsCloudUser.id);
+  if(error) console.error('My Habits cloud update error:',error);
+}
+
+async function myHabitsCloudDeleteHabit(id){
+  const client=myHabitsCloudClient();
+  if(!client || !myHabitsCloudUser) return;
+  const {error}=await client.from('habits').delete()
+    .eq('id',id).eq('user_id',myHabitsCloudUser.id);
+  if(error) console.error('My Habits cloud delete error:',error);
+}
+
+/* Keep the existing UI/local behavior, then mirror habit CRUD to Supabase. */
+const myHabitsOriginalAddFromInput=window.addFromInput;
+window.addFromInput=async function(){
+  const before=new Set(data.habits.map(h=>h.id));
+  myHabitsOriginalAddFromInput();
+  const created=data.habits.find(h=>!before.has(h.id));
+  if(created) await myHabitsCloudCreateHabit(created);
+};
+
+const myHabitsOriginalEditHabit=window.editHabit;
+window.editHabit=async function(id){
+  const before=data.habits.find(h=>h.id===id)?.name;
+  myHabitsOriginalEditHabit(id);
+  const habit=data.habits.find(h=>h.id===id);
+  if(habit && habit.name!==before) await myHabitsCloudUpdateHabit(habit);
+};
+
+const myHabitsOriginalRemoveHabit=window.removeHabit;
+window.removeHabit=async function(id){
+  const exists=data.habits.some(h=>h.id===id);
+  myHabitsOriginalRemoveHabit(id);
+  if(exists && !data.habits.some(h=>h.id===id)) await myHabitsCloudDeleteHabit(id);
+};
+
+async function myHabitsStartCloud(){
+  try{
+    const client=myHabitsCloudClient();
+    if(!client) return;
+    const result=await myHabitsCloudSyncHabits();
+    if(result.ok) render();
+    console.log('My Habits cloud sync:',result);
+  }catch(error){
+    console.error('My Habits cloud sync error:',error);
+  }
+}
+
+window.addEventListener('load',()=>setTimeout(myHabitsStartCloud,700));
 </script>
 
 </body></html>
