@@ -1711,11 +1711,12 @@ function closeTrialV18(){
 
 
 <script>
-/* MY HABITS V23 — Cloud habits sync.
-   Uses only the Supabase publishable key. Never use service_role/secret keys here. */
+/* MY HABITS V24 — Cloud habits sync.
+   Safe first-sync: local data is never replaced by an empty cloud table. */
 let myHabitsCloud = null;
 let myHabitsCloudUser = null;
 let myHabitsCloudReady = false;
+let myHabitsCloudSyncing = false;
 
 function myHabitsCloudClient(){
   if(myHabitsCloud) return myHabitsCloud;
@@ -1729,10 +1730,14 @@ function myHabitsCloudClient(){
 }
 
 function myHabitsUuid(){
-  if(window.crypto?.randomUUID) return crypto.randomUUID();
+  if(window.crypto?.randomUUID) return window.crypto.randomUUID();
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
     const r=Math.random()*16|0,v=c==='x'?r:(r&3|8);return v.toString(16);
   });
+}
+
+function myHabitsIsUuid(value){
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value||''));
 }
 
 function myHabitsRemapLocalIds(map){
@@ -1751,43 +1756,61 @@ function myHabitsRemapLocalIds(map){
   save();
 }
 
-async function myHabitsCloudSyncHabits(){
+async function myHabitsCloudGetSession(){
   const client=myHabitsCloudClient();
-  if(!client) return {ok:false,reason:'client'};
-  const {data:{session},error:sessionError}=await client.auth.getSession();
-  if(sessionError || !session?.user) return {ok:false,reason:'session'};
-  myHabitsCloudUser=session.user;
-  myHabitsCloudReady=true;
+  if(!client) return null;
+  const {data,error}=await client.auth.getSession();
+  if(error) throw error;
+  return data?.session||null;
+}
 
-  const userId=session.user.id;
-  const {data:remote,error:readError}=await client
-    .from('habits')
-    .select('id,name,created_at')
-    .eq('user_id',userId)
-    .order('created_at',{ascending:true});
+async function myHabitsCloudSyncHabits(){
+  if(myHabitsCloudSyncing) return {ok:false,reason:'busy'};
+  myHabitsCloudSyncing=true;
+  try{
+    const client=myHabitsCloudClient();
+    if(!client) return {ok:false,reason:'client'};
 
-  if(readError) throw readError;
+    const session=await myHabitsCloudGetSession();
+    if(!session?.user) return {ok:false,reason:'session'};
 
-  /* First cloud sync: if this user has no cloud habits, migrate the local habits. */
-  if(!remote?.length && data.habits.length){
-    const idMap={};
-    const rows=data.habits.map(h=>{
-      const newId=myHabitsUuid();
-      idMap[h.id]=newId;
-      return {id:newId,user_id:userId,name:h.name};
-    });
-    const {data:inserted,error:insertError}=await client
-      .from('habits')
-      .insert(rows)
-      .select('id,name,created_at');
-    if(insertError) throw insertError;
-    myHabitsRemapLocalIds(idMap);
     myHabitsCloudUser=session.user;
-    return {ok:true,action:'uploaded',count:inserted?.length||rows.length};
-  }
+    myHabitsCloudReady=true;
+    const userId=session.user.id;
 
-  /* If cloud already has habits, use cloud as the source of truth for the habit list. */
-  if(remote?.length){
+    const {data:remote,error:readError}=await client
+      .from('habits')
+      .select('id,name,created_at')
+      .eq('user_id',userId)
+      .order('created_at',{ascending:true});
+    if(readError) throw readError;
+
+    /* IMPORTANT: never replace local habits with an empty cloud result. */
+    if(!remote?.length){
+      const local=data.habits||[];
+      if(!local.length) return {ok:true,action:'empty',count:0};
+
+      const idMap={};
+      const rows=local.map(h=>{
+        const oldId=h.id;
+        const newId=myHabitsIsUuid(oldId)?oldId:myHabitsUuid();
+        idMap[oldId]=newId;
+        return {id:newId,user_id:userId,name:String(h.name||'').trim()};
+      }).filter(row=>row.name);
+
+      if(!rows.length) return {ok:true,action:'empty',count:0};
+
+      const {data:inserted,error:insertError}=await client
+        .from('habits')
+        .insert(rows)
+        .select('id,name,created_at');
+      if(insertError) throw insertError;
+
+      myHabitsRemapLocalIds(idMap);
+      return {ok:true,action:'uploaded',count:inserted?.length||rows.length};
+    }
+
+    /* Cloud has data: use it as source of truth only when it is non-empty. */
     data.habits=remote.map(h=>({id:h.id,name:h.name}));
     data.archive=data.archive||{};
     remote.forEach(h=>data.archive[h.id]=h.name);
@@ -1795,25 +1818,34 @@ async function myHabitsCloudSyncHabits(){
     data.reminders=data.reminders||{};
     save();
     return {ok:true,action:'downloaded',count:remote.length};
+  } finally {
+    myHabitsCloudSyncing=false;
   }
-
-  return {ok:true,action:'empty',count:0};
 }
 
 async function myHabitsCloudCreateHabit(habit){
   const client=myHabitsCloudClient();
-  if(!client || !myHabitsCloudUser) return;
+  if(!client) return;
+  const session=await myHabitsCloudGetSession();
+  if(!session?.user) return;
+  myHabitsCloudUser=session.user;
+
+  let id=habit.id;
+  if(!myHabitsIsUuid(id)){
+    const newId=myHabitsUuid();
+    myHabitsRemapLocalIds({[id]:newId});
+    id=newId;
+    habit=data.habits.find(h=>h.id===id)||habit;
+  }
   const {error}=await client.from('habits').insert({
-    id:habit.id,
-    user_id:myHabitsCloudUser.id,
-    name:habit.name
+    id,user_id:session.user.id,name:String(habit.name||'').trim()
   });
   if(error) console.error('My Habits cloud create error:',error);
 }
 
 async function myHabitsCloudUpdateHabit(habit){
   const client=myHabitsCloudClient();
-  if(!client || !myHabitsCloudUser) return;
+  if(!client || !myHabitsCloudUser || !myHabitsIsUuid(habit.id)) return;
   const {error}=await client.from('habits').update({name:habit.name})
     .eq('id',habit.id).eq('user_id',myHabitsCloudUser.id);
   if(error) console.error('My Habits cloud update error:',error);
@@ -1821,13 +1853,12 @@ async function myHabitsCloudUpdateHabit(habit){
 
 async function myHabitsCloudDeleteHabit(id){
   const client=myHabitsCloudClient();
-  if(!client || !myHabitsCloudUser) return;
+  if(!client || !myHabitsCloudUser || !myHabitsIsUuid(id)) return;
   const {error}=await client.from('habits').delete()
     .eq('id',id).eq('user_id',myHabitsCloudUser.id);
   if(error) console.error('My Habits cloud delete error:',error);
 }
 
-/* Keep the existing UI/local behavior, then mirror habit CRUD to Supabase. */
 const myHabitsOriginalAddFromInput=window.addFromInput;
 window.addFromInput=async function(){
   const before=new Set(data.habits.map(h=>h.id));
@@ -1852,18 +1883,30 @@ window.removeHabit=async function(id){
 };
 
 async function myHabitsStartCloud(){
-  try{
-    const client=myHabitsCloudClient();
-    if(!client) return;
-    const result=await myHabitsCloudSyncHabits();
-    if(result.ok) render();
-    console.log('My Habits cloud sync:',result);
-  }catch(error){
-    console.error('My Habits cloud sync error:',error);
+  for(let attempt=1;attempt<=5;attempt++){
+    try{
+      const result=await myHabitsCloudSyncHabits();
+      if(result.ok){
+        if(typeof render==='function') render();
+        console.log('My Habits cloud sync:',result);
+        return result;
+      }
+      if(result.reason==='session'){
+        await new Promise(r=>setTimeout(r,500*attempt));
+        continue;
+      }
+      console.log('My Habits cloud sync skipped:',result);
+      return result;
+    }catch(error){
+      console.error('My Habits cloud sync error:',error);
+      return {ok:false,reason:'error',error};
+    }
   }
+  return {ok:false,reason:'session-timeout'};
 }
 
-window.addEventListener('load',()=>setTimeout(myHabitsStartCloud,700));
+/* Start after the Supabase library and auth restoration have had time to initialize. */
+window.addEventListener('load',()=>setTimeout(myHabitsStartCloud,1200));
 </script>
 
 </body></html>
