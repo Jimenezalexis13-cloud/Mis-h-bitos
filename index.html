@@ -1977,8 +1977,11 @@ async function myHabitsStartCloud(){
       const result=await myHabitsCloudSyncHabits();
       if(result.ok){
         try{
+          /* V28 — Supabase is the source of truth on startup.
+             Pull cloud completions into this device, but do NOT immediately
+             upload this device's possibly-stale local state back to the cloud.
+             Individual taps are synced by myHabitsCloudSyncDay(). */
           await myHabitsCloudPullCompletions();
-          await myHabitsCloudSyncAllLocalCompletions();
         }catch(completionError){
           console.error('My Habits completion cloud sync error:',completionError);
         }
